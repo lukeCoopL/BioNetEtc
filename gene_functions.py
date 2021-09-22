@@ -1,23 +1,37 @@
 from matplotlib.pyplot import xcorr
 import networkx as nx
 import itertools
+import copy
 import numpy as np
 from networkx.algorithms.shortest_paths.unweighted import all_pairs_shortest_path, predecessor
 #
-def duplicate_genes(G,genes):
+def duplicate_genes(G,genes,iteration=0):
   mapping = {}
+  print(iteration)
   for i in genes:
-    mapping[i] = str(i)+"_c"
+    if iteration!=0:
+      mapping[i] = str(i)+"_"+str(iteration)
+    else:
+      mapping[i] = str(i)+"_c"
   G_sub=G.subgraph(genes)
   G_sub=nx.relabel_nodes(G_sub,mapping)
   G_dup=nx.compose(G,G_sub)
-  for i in list(G.nodes()):
-    for j in list(G.nodes()):
-      if (i,j) in list(G.edges()):
-        if (i,str(j)+"_c") not in list(G_dup.edges()) and j in genes:
-          G_dup.add_edge(i,str(j)+"_c")
-        if (str(i)+"_c",j) not in list(G_dup.edges()) and i in genes:
-          G_dup.add_edge(str(i)+"_c",j)
+  if iteration!=0:
+    for i in list(G.nodes()):
+      for j in list(G.nodes()):
+        if (i,j) in list(G.edges()):
+          if (i,str(i)+"_"+str(iteration)) not in list(G_dup.edges()) and j in genes:
+            G_dup.add_edge(i,str(j)+"_"+str(iteration))
+          if (str(i)+"_"+str(iteration),j) not in list(G_dup.edges()) and i in genes:
+            G_dup.add_edge(str(i)+"_"+str(iteration),j)
+  else:
+    for i in list(G.nodes()):
+      for j in list(G.nodes()):
+        if (i,j) in list(G.edges()):
+          if (i,str(j)+"_c") not in list(G_dup.edges()) and j in genes:
+            G_dup.add_edge(i,str(j)+"_c")
+          if (str(i)+"_c",j) not in list(G_dup.edges()) and i in genes:
+            G_dup.add_edge(str(i)+"_c",j)
   return G_dup
 
 #Here PA and PB are the sets of parents (children) of the nodes a in graph 1 and b in graph 2 respectively
@@ -120,21 +134,21 @@ def NF(G1,G2,alpha=32,beta=0.8):
     maxScore=0
     score=0
     for x in list(G1.nodes()):
-      print("a")
+      
       PA=list(G1.predecessors(x))
-      print("b")
+      
       CA=list(G1.successors(x))
-      print("c")
+      
       for y in list(G2.nodes()):
-        print("d")
+        
         PB=list(G2.predecessors(y))
-        print("e")
+        
         CB=list(G2.successors(y))
-        print("f")
+        
         if (x,y) not in aligned and x not in alignedVert1 and y not in alignedVert2:
-          print("g")
+          
           score = NF_scorer(x,y,G1,G2,PA,PB,CA,CB,aligned,alpha,beta)
-          print("h")
+          
           if score>maxScore:
             maxScore=score
             maxX=x
@@ -144,3 +158,127 @@ def NF(G1,G2,alpha=32,beta=0.8):
     alignedVert1.append(maxX)
     alignedVert2.append(maxY)
   return aligned
+
+def NF_many_to_one(G1,G2,alpha=32,beta=0.8):
+  aligned=[]
+  alignedVert1=[]
+  alignedVert2=[]
+  maxScore=0
+  while len(aligned) <min(len(list(G1.nodes())),len(list(G2.nodes()))):
+    maxScore=0
+    score=0
+    for x in list(G1.nodes()):
+      
+      PA=list(G1.predecessors(x))
+      
+      CA=list(G1.successors(x))
+      
+      for y in list(G2.nodes()):
+        
+        PB=list(G2.predecessors(y))
+        
+        CB=list(G2.successors(y))
+        
+        if (x,y) not in aligned and x not in alignedVert1:
+          
+          score = NF_scorer(x,y,G1,G2,PA,PB,CA,CB,aligned,alpha,beta)
+          
+          if score>maxScore:
+            maxScore=score
+            maxX=x
+            maxY=y
+    aligned.append((maxX,maxY))
+    print(maxX,maxY)
+    alignedVert1.append(maxX)
+    alignedVert2.append(maxY)
+  return aligned,alignedVert1
+def NF_many_to_many(G1,G2,alpha=32,beta=0.8,gamma=20):
+  aligned=[]
+  alignedVert1=set()
+  alignedVert2=set()
+  maxScore=0
+  scoreLimit=False
+  while not scoreLimit:
+    maxScore=0
+    
+    score=0
+    for x in list(G1.nodes()):
+      
+      PA=list(G1.predecessors(x))
+      
+      CA=list(G1.successors(x))
+      
+      for y in list(G2.nodes()):
+        
+        PB=list(G2.predecessors(y))
+        
+        CB=list(G2.successors(y))
+        
+        if (x,y) not in aligned:
+          
+          score = NF_scorer(x,y,G1,G2,PA,PB,CA,CB,aligned,alpha,beta)
+          
+          if score>maxScore:
+            #print(score)
+            maxScore=score
+            maxX=x
+            maxY=y
+    aligned.append((maxX,maxY))
+    #print(maxX,maxY)
+    alignedVert1.add(maxX)
+    alignedVert2.add(maxY)
+    if maxScore <gamma:
+      scoreLimit=True
+  return aligned,alignedVert1
+def network_birth(G,steps1,steps2,qCon,qMod):
+  #works but has issue that if a gene is duplicated twice then the second copy disappears as it doesn;t have a unique name
+    G1=copy.deepcopy(G)
+    G2=copy.deepcopy(G)
+    print(G1.nodes)
+    G1history=[]
+    G2history=[]
+    for i in range(0,steps1):
+        G1history.append(G1)
+        G1=dmc(G1,qCon,qMod,iteration=i+1)
+    for j in range(0,steps2):
+        G2history.append(G2)
+        G2=dmc(G2,qCon,qMod,iteration=j+1)
+    return G1,G2
+def dmc(G,qCon,qMod,iteration=0):
+  print(iteration)
+  #works but has issue that if a gene is duplicated twice then the second copy disappears as it doesn;t have a unique name
+  G=copy.deepcopy(G)
+  nodeNum=len(list(G.nodes))-1
+  rando=np.random.random()
+  nodeList=list(G.nodes)
+  dupNode=nodeList[round(nodeNum*rando)]
+  parents=copy.deepcopy(G.predecessors(dupNode))
+  
+  G=duplicate_genes(G,[dupNode],iteration=iteration)
+  
+  
+  for i in parents:
+    rando=np.random.rand(1)
+    if rando > qMod:
+      rando=np.random.rand(1)
+      if rando >0.5:
+        G.remove_edge(i,str(dupNode)+"_"+str(iteration))
+      else:
+        G.remove_edge(i,dupNode)
+  children=copy.deepcopy(G.successors(dupNode))
+  for i in children:
+    rando=np.random.rand(1)
+    if rando > qMod:
+      rando=np.random.rand(1)
+      if rando >0.5:
+        G.remove_edge(str(dupNode)+"_"+str(iteration),i)
+      else:
+        G.remove_edge(dupNode,i)
+  rando=np.random.rand(1)
+  if rando>qCon:
+    rando=np.random.rand(1)
+    if rando>0.5:
+      G.add_edge(dupNode,str(dupNode)+"_"+str(iteration))
+    else:
+      G.add_edge(str(dupNode)+"_"+str(iteration),dupNode)
+  return G
