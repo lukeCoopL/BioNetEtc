@@ -5,6 +5,12 @@ import copy
 import numpy as np
 from networkx.algorithms.shortest_paths.unweighted import all_pairs_shortest_path, predecessor
 #
+def connected_component_subgraphs(G):
+    G=copy.deepcopy(G)
+    G=G.to_undirected()
+    for c in nx.connected_components(G):
+        yield G.subgraph(c)
+            
 def duplicate_genes(G,genes,iteration=0):
   mapping = {}
   print(iteration)
@@ -182,8 +188,14 @@ def NF_many_to_one(G1,G2,alpha=32,beta=0.8):
         if (x,y) not in aligned and x not in alignedVert1:
           
           score = NF_scorer(x,y,G1,G2,PA,PB,CA,CB,aligned,alpha,beta)
-          
+          if(x==y):
+            print("true pair",score,x,y)
+          #if score<maxScore:
+          #  print("lower",score,x,y)
+          if score==maxScore:
+            print("equal",score,x,y)
           if score>maxScore:
+            print("greater",score,x,y)
             maxScore=score
             maxX=x
             maxY=y
@@ -230,8 +242,7 @@ def NF_many_to_many(G1,G2,alpha=32,beta=0.8,gamma=20):
     if maxScore <gamma:
       scoreLimit=True
   return aligned,alignedVert1
-def network_birth(G,steps1,steps2,qCon,qMod):
-  #works but has issue that if a gene is duplicated twice then the second copy disappears as it doesn;t have a unique name
+def network_birth(G,steps1,steps2,qCon,qMod,iteration=0):
     G1=copy.deepcopy(G)
     G2=copy.deepcopy(G)
     print(G1.nodes)
@@ -239,18 +250,18 @@ def network_birth(G,steps1,steps2,qCon,qMod):
     G2history=[]
     for i in range(0,steps1):
         G1history.append(G1)
-        G1=dmc(G1,qCon,qMod,iteration=i+1)
+        G1=dmc(G1,qCon,qMod,iteration=iteration+i+1)
     for j in range(0,steps2):
         G2history.append(G2)
-        G2=dmc(G2,qCon,qMod,iteration=j+1)
+        G2=dmc(G2,qCon,qMod,iteration=iteration+j+1)
     return G1,G2
 def dmc(G,qCon,qMod,iteration=0):
   print(iteration)
-  #works but has issue that if a gene is duplicated twice then the second copy disappears as it doesn;t have a unique name
   G=copy.deepcopy(G)
   nodeNum=len(list(G.nodes))-1
   rando=np.random.random()
   nodeList=list(G.nodes)
+  print(rando,nodeNum,round(nodeNum*rando))
   dupNode=nodeList[round(nodeNum*rando)]
   parents=copy.deepcopy(G.predecessors(dupNode))
   
@@ -282,3 +293,153 @@ def dmc(G,qCon,qMod,iteration=0):
     else:
       G.add_edge(str(dupNode)+"_"+str(iteration),dupNode)
   return G
+def duplication_forest(G,mostRecent):
+  G_forest=nx.DiGraph()
+  G_forest.add_nodes_from(G)
+  treeComplete=False
+  #mostRecent=0
+  addedToTree=[]
+  branchLength=1
+  ancestorLength1 = branchLength
+  ancestorLength2 = branchLength
+  while not treeComplete:
+    for i in list(G.nodes):
+        
+        nodeTemp=str(i)
+        print("mostRecent",mostRecent)
+        print("check of dup number",nodeTemp[-len(str(mostRecent)):len(nodeTemp)])
+        if mostRecent==0:
+          print("m")
+        elif len(nodeTemp)>=len(str(mostRecent))+1:
+          if nodeTemp[-1-len(str(mostRecent))]=='_' and nodeTemp[-len(str(mostRecent)):len(nodeTemp)]==str(mostRecent):
+            nodeTempAncestor=nodeTemp[:-1-len(str(mostRecent))]
+            print("Temp node and ancestor",nodeTemp,nodeTempAncestor)
+            if len(nodeTempAncestor)==1:
+              nodeTempAncestor=int(nodeTempAncestor)
+              addedToTree.append(nodeTempAncestor)
+            if nodeTemp not in addedToTree:
+              j=nodeTempAncestor
+              m=nodeTemp
+              print(list(G_forest.predecessors(j)))
+              #if len(list(G_forest.predecessors(j)))==0:
+                #addedToTree.append(nodeTempAncestor)
+              while len(list(G_forest.predecessors(j)))!=0:
+                for k in G_forest.predecessors(j):
+                  print(G_forest[k][j]['weight'])
+                  ancestorLength1=ancestorLength1-G_forest[k][j]['weight']
+                  j=k
+                  
+              while len(list(G_forest.predecessors(m)))!=0:
+                for k in G_forest.predecessors(m):
+                  print(G_forest[k][m]['weight'])
+                  ancestorLength2=ancestorLength2-G_forest[k][m]['weight']
+                  m=k
+                  
+              
+              G_forest.add_node(str(j)+"Anc")
+              G_forest.add_edge(str(j)+"Anc",m,weight=ancestorLength2)
+              G_forest.add_edge(str(j)+"Anc",j,weight=ancestorLength1)
+              
+              addedToTree.append(nodeTemp)
+              print("added to tree",addedToTree)
+              #print("most Recent",mostRecent)
+              if len(addedToTree)>=len(G.nodes):
+                treeComplete=True
+    mostRecent=mostRecent-1
+    branchLength=branchLength+1
+    ancestorLength1=branchLength
+    ancestorLength2=branchLength
+    if mostRecent<0:
+      treeComplete=True
+      print(addedToTree)
+  return G_forest
+    
+def NC_scorer(alignment,mapped,G1,G2,G1_forest,G2_forest):
+  alignment=dict(alignment)
+  NCScore=0
+  for i in mapped:
+    if alignment[i]==i:
+      NCScore=NCScore+1
+    elif alignment[i] in G1_forest.nodes and i in G1_forest.nodes:
+      NCScorer = NCScorer+1-tree_distance(i,alignment[i])
+    #elif alignment[i] in G2_forest.nodes and i in G1_forest.nodes and alignment[i] not in G2_forest.nodes and i not in G1_forest.nodes:
+      #NCScorer=NCScorer+1-closest_neighbour_distance(i,alignment[i])
+
+def tree_distance_rec(x,y,G1_forest):
+  #print(list(G1_forest.predecessors(x))[0])
+  if x==y:
+    
+    return 0
+  if x!=y and len(list(G1_forest.predecessors(x)))!=0 and len(list(G1_forest.predecessors(y)))!=0:
+    return G1_forest[list(G1_forest.predecessors(x))[0]][x]['weight']+G1_forest[list(G1_forest.predecessors(y))[0]][y]['weight'] + tree_distance_rec(list(G1_forest.predecessors(x))[0],y,G1_forest)+tree_distance_rec(x,list(G1_forest.predecessors(y))[0],G1_forest)
+  elif x!=y and len(list(G1_forest.predecessors(x)))!=0:
+    return G1_forest[list(G1_forest.predecessors(x))[0]][x]['weight']+tree_distance_rec(list(G1_forest.predecessors(x))[0],y,G1_forest)
+  elif x!=y and len(list(G1_forest.predecessors(y)))!=0:
+    return G1_forest[list(G1_forest.predecessors(y))[0]][y]['weight']+tree_distance_rec(x,list(G1_forest.predecessors(y))[0],G1_forest)
+  else:
+    return 0
+def tree_distance(x,y,G1_forest):
+  if x!=y:
+    return G1_forest[list(G1_forest.predecessors(x))[0]][x]['weight']+G1_forest[list(G1_forest.predecessors(y))[0]][y]['weight']+tree_distance_rec(list(G1_forest.predecessors(x))[0],list(G1_forest.predecessors(y))[0],G1_forest)
+  else:
+    return 0
+def tree_distance_loop(x,y,G_forest):
+  inGraph = False
+  if x in G_forest.nodes and y in G_forest.nodes:
+    inGraph=True
+  if not inGraph:
+    return "Either " +str(x) + " or " + str(y) + " not in graph"
+  components = connected_component_subgraphs(G_forest)
+  shared_tree=False
+  for graph in components:
+    if x in graph.nodes and y in graph.nodes:
+      shared_tree= True
+  if not shared_tree:
+    return "Nodes " + str(x) +" and " + str(y) + " share no duplication history"
+  distance=0
+  if len(list(G_forest.predecessors(x)))!=0 and len(list(G_forest.predecessors(y)))!=0:
+    xAnc=list(G_forest.predecessors(x))[0]
+    yAnc=list(G_forest.predecessors(y))[0]
+    xBranchLength=G_forest[xAnc][x]['weight']
+    yBranchLength=G_forest[yAnc][y]['weight']
+  if x!=y:
+    x=xAnc
+    y=yAnc
+    distance = xBranchLength+yBranchLength
+  else:
+    return 0
+  while x!=y:
+    print(x,y)
+    if xBranchLength>yBranchLength and len(list(G_forest.predecessors(y)))!=0:
+      yAnc=list(G_forest.predecessors(y))[0]
+      yBranchLength=G_forest[yAnc][y]['weight']
+      y=yAnc
+      
+      distance=distance+yBranchLength
+    elif yBranchLength>=xBranchLength and len(list(G_forest.predecessors(x)))!=0:
+      xAnc=list(G_forest.predecessors(x))[0]
+      xBranchLength=G_forest[xAnc][x]['weight']
+      x=xAnc
+      
+      distance=distance+xBranchLength
+  
+  return distance  
+  
+#def closest_neighbour_distance(x,y,G1_forest,G2_forest):
+
+def label_conserver(G):
+  labelConserver=dict()
+  origGList=list(G.nodes)
+  for i in origGList:
+      labelConserverTemp = {"orig_label":i}
+      labelConserver[i]=labelConserverTemp
+  nx.set_node_attributes(G, labelConserver)
+  print(labelConserver)
+  print(G.nodes[0]['orig_label'])
+  return G
+
+
+
+
+    
+  
