@@ -2,9 +2,10 @@ from matplotlib.pyplot import xcorr
 import networkx as nx
 import itertools
 import copy
+from networkx.readwrite.json_graph import tree
 import numpy as np
 from networkx.algorithms.shortest_paths.unweighted import all_pairs_shortest_path, predecessor
-#
+
 def connected_component_subgraphs(G):
     G=copy.deepcopy(G)
     G=G.to_undirected()
@@ -13,7 +14,7 @@ def connected_component_subgraphs(G):
             
 def duplicate_genes(G,genes,iteration=0):
   mapping = {}
-  print(iteration)
+  #print(iteration)
   for i in genes:
     if iteration!=0:
       mapping[i] = str(i)+"_"+str(iteration)
@@ -50,14 +51,21 @@ def NF_permlist(PA,PB):
   if m ==0 or n ==0:
     return []
   if len(PA)>len(PB):
-    return [list(j) for i in itertools.combinations(PA,len(PB)-1) for j in itertools.permutations(list(i))]
+    permList=[list(j) for i in itertools.combinations(PA,len(PB)-1) for j in itertools.permutations(list(i))]
+    #permList=set(permList)
+    #print("perm",permList)
+    return permList
   else:
-    return [list(j) for i in itertools.combinations(PB,len(PA)-1) for j in itertools.permutations(list(i))]
+    permList = [list(j) for i in itertools.combinations(PB,len(PA)-1) for j in itertools.permutations(list(i))]
+    #permList=set(permList)
+    #print("perm",permList)
+    return permList
 
 #Here PA and PB are the sets of parents (children) of the nodes a in graph 1 and b in graph 2 respectively
 #Construct the list of all tuples (a_i,b_j) where a_i is a parent (child) of node a in graph 1 and
 # b_j is a parent (child) of node b in graph 2
 def NF_tupleList(PA,PB):
+  #print("tuplelist stRT")
   tempTupleList=[]
   tupleListList=[]
   pMin = min(len(PA),len(PB))
@@ -79,6 +87,7 @@ def NF_tupleList(PA,PB):
       for i in range(0,len(l)):
         tempTupleList.append((l[i],PB[i]))
       tupleListList.append(tempTupleList)
+  #print("tuplelist end")
   return tupleListList
 
 #Here PA and PB are the sets of parents (children) of the nodes a in graph 1 and b in graph 2 respectively
@@ -86,12 +95,15 @@ def NF_tupleList(PA,PB):
 #Returns the 'optimal matching' by finding the set of tuples (a_i,b_j) that minimise the sum given
 # in the Node Fingerprinting paper
 def NF_summer(G1,G2,PA,PB):
+  #print("summer stRT")
   tupleListList=NF_tupleList(PA,PB)
   summand=0
   minList=[]
   minSummand=10000000
-  
+  #print("summer for start")
+  #print("tuplelist len",len(tupleListList))
   for l in tupleListList:
+    
     summand=0
     for i in l:
       lister=list(i)
@@ -99,11 +111,13 @@ def NF_summer(G1,G2,PA,PB):
     if summand<minSummand:
       minSummand=summand
       minList=l
-  
+      
+  #print("summer end")
   return minList
 
 #Returns the score function for a pair of nodes (x,y), x in graph 1 and y in graph 2
 def NF_scorer(x,y,G1,G2,PA,PB,CA,CB,aligned,alpha,beta):
+  #print("scorer stRT")
   minListOut=NF_summer(G1,G2,PA,PB)
   minListIn=NF_summer(G1,G2,CA,CB)
   productOut=1
@@ -117,13 +131,17 @@ def NF_scorer(x,y,G1,G2,PA,PB,CA,CB,aligned,alpha,beta):
   for i in minListIn:
     lister=list(i)
     productIn = productIn*NF_delta(i[0],i[1],G1,G2,aligned,alpha)
+  #print("scorer end")
   return beta**(np.abs(G1.out_degree(x)-G2.out_degree(y)))*productOut + beta**(np.abs(G1.in_degree(x)-G2.in_degree(y)))*productIn
 
 #Determines the value of the delta function for a pair of nodes (a,b), a in graph 1, b in graph 2
 def NF_delta(a,b,G1,G2,aligned,alpha):
+  #print("delta stRT")
   if (a,b) in aligned or max(G1.out_degree(a),G2.out_degree(b))==0 or max(G1.in_degree(a),G2.in_degree(b))==0:
+    #print("delta end")
     return alpha
   else:
+    #print("delta end")
     return min(G1.out_degree(a),G2.out_degree(b))/max(G1.out_degree(a),G2.out_degree(b))+min(G1.in_degree(a),G2.in_degree(b))/max(G1.in_degree(a),G2.in_degree(b))
 
 #Performs node fingerprinting for two graphs G1 and G2, with parameters alpha and beta (default 
@@ -160,47 +178,50 @@ def NF(G1,G2,alpha=32,beta=0.8):
             maxX=x
             maxY=y
     aligned.append((maxX,maxY))
-    print(maxX,maxY)
+    #print(maxX,maxY)
     alignedVert1.append(maxX)
     alignedVert2.append(maxY)
-  return aligned
+  return aligned,alignedVert1
 
 def NF_many_to_one(G1,G2,alpha=32,beta=0.8):
+  #print("NF stRT")
   aligned=[]
   alignedVert1=[]
   alignedVert2=[]
   maxScore=0
+  #print("NF while stRT")
   while len(aligned) <min(len(list(G1.nodes())),len(list(G2.nodes()))):
+    
     maxScore=0
     score=0
     for x in list(G1.nodes()):
-      
+      #print("find neighbours 1 start")
       PA=list(G1.predecessors(x))
       
       CA=list(G1.successors(x))
-      
+      #print("find neighbours 1 end")
       for y in list(G2.nodes()):
-        
+        #print("find neighbours 2 start")
         PB=list(G2.predecessors(y))
         
         CB=list(G2.successors(y))
-        
+        #print("find neighbours 1 end")
         if (x,y) not in aligned and x not in alignedVert1:
           
           score = NF_scorer(x,y,G1,G2,PA,PB,CA,CB,aligned,alpha,beta)
-          if(x==y):
-            print("true pair",score,x,y)
+          #if(x==y):
+            #print("true pair",score,x,y)
           #if score<maxScore:
           #  print("lower",score,x,y)
-          if score==maxScore:
-            print("equal",score,x,y)
+          #if score==maxScore:
+            #print("equal",score,x,y)
           if score>maxScore:
-            print("greater",score,x,y)
+            #print("greater",score,x,y)
             maxScore=score
             maxX=x
             maxY=y
     aligned.append((maxX,maxY))
-    print(maxX,maxY)
+    #print(maxX,maxY)
     alignedVert1.append(maxX)
     alignedVert2.append(maxY)
   return aligned,alignedVert1
@@ -215,16 +236,17 @@ def NF_many_to_many(G1,G2,alpha=32,beta=0.8,gamma=20):
     
     score=0
     for x in list(G1.nodes()):
-      
+      #print("find neighbours 1 start")
       PA=list(G1.predecessors(x))
       
       CA=list(G1.successors(x))
-      
+      #print("find neighbours 1 end")
       for y in list(G2.nodes()):
-        
+        #print("find neighbours 2 start")
         PB=list(G2.predecessors(y))
         
         CB=list(G2.successors(y))
+        #print("find neighbours 1 end")
         
         if (x,y) not in aligned:
           
@@ -245,7 +267,7 @@ def NF_many_to_many(G1,G2,alpha=32,beta=0.8,gamma=20):
 def network_birth(G,steps1,steps2,qCon,qMod,iteration=0):
     G1=copy.deepcopy(G)
     G2=copy.deepcopy(G)
-    print(G1.nodes)
+    #print(G1.nodes)
     G1history=[]
     G2history=[]
     for i in range(0,steps1):
@@ -256,12 +278,12 @@ def network_birth(G,steps1,steps2,qCon,qMod,iteration=0):
         G2=dmc(G2,qCon,qMod,iteration=iteration+j+1)
     return G1,G2
 def dmc(G,qCon,qMod,iteration=0):
-  print(iteration)
+  #print(iteration)
   G=copy.deepcopy(G)
   nodeNum=len(list(G.nodes))-1
   rando=np.random.random()
   nodeList=list(G.nodes)
-  print(rando,nodeNum,round(nodeNum*rando))
+  #print(rando,nodeNum,round(nodeNum*rando))
   dupNode=nodeList[round(nodeNum*rando)]
   parents=copy.deepcopy(G.predecessors(dupNode))
   
@@ -306,32 +328,31 @@ def duplication_forest(G,mostRecent):
     for i in list(G.nodes):
         
         nodeTemp=str(i)
-        print("mostRecent",mostRecent)
-        print("check of dup number",nodeTemp[-len(str(mostRecent)):len(nodeTemp)])
-        if mostRecent==0:
-          print("m")
-        elif len(nodeTemp)>=len(str(mostRecent))+1:
+        #print("mostRecent",mostRecent)
+        #print("check of dup number",nodeTemp[-len(str(mostRecent)):len(nodeTemp)])
+        
+        if len(nodeTemp)>=len(str(mostRecent))+1 and mostRecent>0:
           if nodeTemp[-1-len(str(mostRecent))]=='_' and nodeTemp[-len(str(mostRecent)):len(nodeTemp)]==str(mostRecent):
             nodeTempAncestor=nodeTemp[:-1-len(str(mostRecent))]
-            print("Temp node and ancestor",nodeTemp,nodeTempAncestor)
+            #print("Temp node and ancestor",nodeTemp,nodeTempAncestor)
             if len(nodeTempAncestor)==1:
               nodeTempAncestor=int(nodeTempAncestor)
               addedToTree.append(nodeTempAncestor)
             if nodeTemp not in addedToTree:
               j=nodeTempAncestor
               m=nodeTemp
-              print(list(G_forest.predecessors(j)))
+              #print(list(G_forest.predecessors(j)))
               #if len(list(G_forest.predecessors(j)))==0:
                 #addedToTree.append(nodeTempAncestor)
               while len(list(G_forest.predecessors(j)))!=0:
                 for k in G_forest.predecessors(j):
-                  print(G_forest[k][j]['weight'])
+                  #print(G_forest[k][j]['weight'])
                   ancestorLength1=ancestorLength1-G_forest[k][j]['weight']
                   j=k
                   
               while len(list(G_forest.predecessors(m)))!=0:
                 for k in G_forest.predecessors(m):
-                  print(G_forest[k][m]['weight'])
+                  #print(G_forest[k][m]['weight'])
                   ancestorLength2=ancestorLength2-G_forest[k][m]['weight']
                   m=k
                   
@@ -341,31 +362,215 @@ def duplication_forest(G,mostRecent):
               G_forest.add_edge(str(j)+"Anc",j,weight=ancestorLength1)
               
               addedToTree.append(nodeTemp)
-              print("added to tree",addedToTree)
+              #print("added to tree",addedToTree)
               #print("most Recent",mostRecent)
-              if len(addedToTree)>=len(G.nodes):
-                treeComplete=True
+              #if len(addedToTree)>=len(G.nodes):
+              #  treeComplete=True
     mostRecent=mostRecent-1
     branchLength=branchLength+1
     ancestorLength1=branchLength
     ancestorLength2=branchLength
     if mostRecent<0:
       treeComplete=True
-      print(addedToTree)
+      #print(addedToTree)
   return G_forest
+def tree_distance_loop(x,y,G_forest,treeDepth=1):
+  
+  inGraph = False
+  if x in G_forest.nodes and y in G_forest.nodes:
+    inGraph=True
+  if not inGraph:
+    print("Either " +str(x) + " or " + str(y) + " not in graph")
+    return 0
+  components = connected_component_subgraphs(G_forest)
+  shared_tree=False
+  for graph in components:
+    if x in graph.nodes and y in graph.nodes:
+      shared_tree= True
+  if not shared_tree:
+    #print("Nodes " + str(x) +" and " + str(y) + " share no duplication history")
+    return treeDepth
+  distance=0
+  if len(list(G_forest.predecessors(x)))!=0 and len(list(G_forest.predecessors(y)))!=0:
+    xAnc=list(G_forest.predecessors(x))[0]
+    yAnc=list(G_forest.predecessors(y))[0]
+    xBranchLength=G_forest[xAnc][x]['weight']
+    yBranchLength=G_forest[yAnc][y]['weight']
+  if x!=y:
+    x=xAnc
+    y=yAnc
+    distance = xBranchLength+yBranchLength
+  else:
+    return 0
+  while x!=y:
+    #print(x,y)
+    if xBranchLength>yBranchLength and len(list(G_forest.predecessors(y)))!=0:
+      yAnc=list(G_forest.predecessors(y))[0]
+      yBranchLength=G_forest[yAnc][y]['weight']
+      y=yAnc
+      
+      distance=distance+yBranchLength
+    elif yBranchLength>=xBranchLength and len(list(G_forest.predecessors(x)))!=0:
+      xAnc=list(G_forest.predecessors(x))[0]
+      xBranchLength=G_forest[xAnc][x]['weight']
+      x=xAnc
+      
+      distance=distance+xBranchLength
+    elif yBranchLength>=xBranchLength and len(list(G_forest.predecessors(y)))!=0:
+      yAnc=list(G_forest.predecessors(y))[0]
+      yBranchLength=G_forest[yAnc][y]['weight']
+      y=yAnc
+      
+      distance=distance+yBranchLength
+    elif xBranchLength>yBranchLength and len(list(G_forest.predecessors(x)))!=0:
+      xAnc=list(G_forest.predecessors(x))[0]
+      xBranchLength=G_forest[xAnc][x]['weight']
+      x=xAnc
+      
+      distance=distance+xBranchLength
+  return distance  
+  
+def closest_neighbour_distance(x,y,G1_forest,G2_forest,treeDepth=1):
+  
+  ancestor=0
+  
+  leafList = [i for i in G2_forest.nodes() if G2_forest.out_degree(i)==0 and G2_forest.in_degree(i)==1]
+  if y not in leafList:
+    print(str(y)+" not present in second duplication forest, returned 0")
+    return 0
+  if x in leafList:
     
-def NC_scorer(alignment,mapped,G1,G2,G1_forest,G2_forest):
+    ancestor=x
+    return int(tree_distance_loop(ancestor,y,G2_forest,treeDepth=treeDepth))
+  leafListG1 = [i for i in G1_forest.nodes() if G1_forest.out_degree(i)==0 and G1_forest.in_degree(i)==1]
+  minDistance=treeDepth
+  for j in leafListG1:
+    if j in leafList:
+      tempDistance = tree_distance_loop(x,j,G1_forest,treeDepth=treeDepth)
+      if tempDistance<minDistance:
+        minDistance=tempDistance
+        ancestor=j
+  if ancestor==0:
+    #print("Nothing in common between duplication trees")
+    return treeDepth
+  return int(minDistance/2) + int(int(tree_distance_loop(ancestor,y,G2_forest,treeDepth=treeDepth))/2)
+
+def NC_scorer(alignment,mapped,G1,G2,G1_forest,G2_forest,labelsConserved=True,DMCSteps=0,childDistance=0):
+  
+  if DMCSteps == 0:
+    maxTreeDepth=0
+    treeDepth=0
+    
+    for G in [G1_forest,G2_forest]:
+      treeDepth=0
+      treeTraversed=False
+      for x in [i for i in G.nodes() if G.in_degree(i)==0 and G.out_degree(i)!=0]:
+        treeDepth=0
+        treeTraversed=False
+        while not treeTraversed:
+          if len(list(G.successors(x)))==0:
+            treeTraversed=True
+          else:
+            
+            xChild = list(G.successors(x))[0]
+            
+            treeDepth = treeDepth + G[x][xChild]['weight']
+            #print("x and child ",x,xChild,treeDepth)
+            x=xChild
+            
+      if treeDepth>maxTreeDepth:
+        maxTreeDepth=treeDepth
+    maxTreeDepth=2*maxTreeDepth
+    #print('maxTreeDepth',maxTreeDepth)
+  else:
+    maxTreeDepth=2*DMCSteps
   alignment=dict(alignment)
   NCScore=0
-  for i in mapped:
-    if alignment[i]==i:
-      NCScore=NCScore+1
-    elif alignment[i] in G1_forest.nodes and i in G1_forest.nodes:
-      NCScorer = NCScorer+1-tree_distance(i,alignment[i])
-    #elif alignment[i] in G2_forest.nodes and i in G1_forest.nodes and alignment[i] not in G2_forest.nodes and i not in G1_forest.nodes:
-      #NCScorer=NCScorer+1-closest_neighbour_distance(i,alignment[i])
+  if labelsConserved:
+    for i in mapped:
+      if G2.nodes[alignment[i]]['orig_label']==G1.nodes[i]['orig_label']:
+        NCScore=NCScore+1 - (2*childDistance)/maxTreeDepth
+        
+      elif G2.nodes[alignment[i]]['orig_label'] in G1_forest.nodes and G1.nodes[i]['orig_label'] in G1_forest.nodes:
+        NCScore = NCScore+1-tree_distance_loop(G1.nodes[i]['orig_label'],G2.nodes[alignment[i]]['orig_label'],G1_forest,maxTreeDepth)/maxTreeDepth
+        #print("treedist",tree_distance_loop(G1.nodes[i]['orig_label'],G2.nodes[alignment[i]]['orig_label'],G1_forest,maxTreeDepth)/maxTreeDepth)
+      elif G2.nodes[alignment[i]]['orig_label'] in G2_forest.nodes:
+        NCScore=NCScore+1-closest_neighbour_distance(G1.nodes[i]['orig_label'],G2.nodes[alignment[i]]['orig_label'],G1_forest,G2_forest,maxTreeDepth)/maxTreeDepth
+        #print("difftreedist",closest_neighbour_distance(G1.nodes[i]['orig_label'],G2.nodes[alignment[i]]['orig_label'],G1_forest,G2_forest,maxTreeDepth)/maxTreeDepth)
+  else:
+    for i in mapped:
+      if alignment[i]==i:
+        NCScore=NCScore+1 - 2*childDistance/maxTreeDepth
+      elif alignment[i] in G1_forest.nodes and i in G1_forest.nodes:
+        NCScore = NCScore+1-tree_distance_loop(i,alignment[i],G1_forest,maxTreeDepth)/maxTreeDepth
+      elif alignment[i] in G2_forest.nodes:
+        NCScore=NCScore+1-closest_neighbour_distance(i,alignment[i],G1_forest,G2_forest,maxTreeDepth)/maxTreeDepth
+  return NCScore/len(mapped)
 
-def tree_distance_rec(x,y,G1_forest):
+def original_networks_NC_score(G1,G2,G1_forest,G2_forest,DMCSteps=0,childDistance=0):
+  
+  NCScore=0
+  if DMCSteps==0:
+    maxTreeDepth=0
+    treeDepth=0
+    
+    for G in [G1_forest,G2_forest]:
+      treeDepth=0
+      treeTraversed=False
+      for x in [i for i in G.nodes() if G.in_degree(i)==0 and G.out_degree(i)!=0]:
+        treeDepth=0
+        treeTraversed=False
+        while not treeTraversed:
+          if len(list(G.successors(x)))==0:
+            treeTraversed=True
+          else:
+            
+            xChild = list(G.successors(x))[0]
+            
+            treeDepth = treeDepth + G[x][xChild]['weight']
+            #print("x and child ",x,xChild,treeDepth)
+            x=xChild
+            
+      if treeDepth>maxTreeDepth:
+        maxTreeDepth=treeDepth
+    maxTreeDepth=2*maxTreeDepth
+    #print('maxTreeDepth',maxTreeDepth)
+  else:
+    maxTreeDepth=2*DMCSteps
+  for i in G1.nodes():
+    minMatcher=len(G1.nodes)**2
+    if i in G2.nodes():
+      minMatcher= 2*childDistance/maxTreeDepth
+      matcher=minMatcher
+    else:
+      matcher=minMatcher
+    
+    for j in G2.nodes():
+      if j!=i:
+        if j in G1.nodes():
+          matcher = tree_distance_loop(i,j,G1_forest,maxTreeDepth)/maxTreeDepth
+        else:
+          matcher = closest_neighbour_distance(i,j,G1_forest,G2_forest,maxTreeDepth)/maxTreeDepth
+      if matcher<minMatcher:
+        minMatcher=matcher
+    #print("minmatcher",minMatcher)
+    NCScore=NCScore+1-minMatcher
+  return NCScore/len(G1.nodes)
+
+
+
+def label_conserver(G):
+  labelConserver=dict()
+  origGList=list(G.nodes)
+  for i in origGList:
+      labelConserverTemp = {"orig_label":i}
+      labelConserver[i]=labelConserverTemp
+  nx.set_node_attributes(G, labelConserver)
+  #print(labelConserver)
+  #print(G.nodes[0]['orig_label'])
+  return G
+
+'''def tree_distance_rec(x,y,G1_forest):
   #print(list(G1_forest.predecessors(x))[0])
   if x==y:
     
@@ -382,62 +587,7 @@ def tree_distance(x,y,G1_forest):
   if x!=y:
     return G1_forest[list(G1_forest.predecessors(x))[0]][x]['weight']+G1_forest[list(G1_forest.predecessors(y))[0]][y]['weight']+tree_distance_rec(list(G1_forest.predecessors(x))[0],list(G1_forest.predecessors(y))[0],G1_forest)
   else:
-    return 0
-def tree_distance_loop(x,y,G_forest):
-  inGraph = False
-  if x in G_forest.nodes and y in G_forest.nodes:
-    inGraph=True
-  if not inGraph:
-    return "Either " +str(x) + " or " + str(y) + " not in graph"
-  components = connected_component_subgraphs(G_forest)
-  shared_tree=False
-  for graph in components:
-    if x in graph.nodes and y in graph.nodes:
-      shared_tree= True
-  if not shared_tree:
-    return "Nodes " + str(x) +" and " + str(y) + " share no duplication history"
-  distance=0
-  if len(list(G_forest.predecessors(x)))!=0 and len(list(G_forest.predecessors(y)))!=0:
-    xAnc=list(G_forest.predecessors(x))[0]
-    yAnc=list(G_forest.predecessors(y))[0]
-    xBranchLength=G_forest[xAnc][x]['weight']
-    yBranchLength=G_forest[yAnc][y]['weight']
-  if x!=y:
-    x=xAnc
-    y=yAnc
-    distance = xBranchLength+yBranchLength
-  else:
-    return 0
-  while x!=y:
-    print(x,y)
-    if xBranchLength>yBranchLength and len(list(G_forest.predecessors(y)))!=0:
-      yAnc=list(G_forest.predecessors(y))[0]
-      yBranchLength=G_forest[yAnc][y]['weight']
-      y=yAnc
-      
-      distance=distance+yBranchLength
-    elif yBranchLength>=xBranchLength and len(list(G_forest.predecessors(x)))!=0:
-      xAnc=list(G_forest.predecessors(x))[0]
-      xBranchLength=G_forest[xAnc][x]['weight']
-      x=xAnc
-      
-      distance=distance+xBranchLength
-  
-  return distance  
-  
-#def closest_neighbour_distance(x,y,G1_forest,G2_forest):
-
-def label_conserver(G):
-  labelConserver=dict()
-  origGList=list(G.nodes)
-  for i in origGList:
-      labelConserverTemp = {"orig_label":i}
-      labelConserver[i]=labelConserverTemp
-  nx.set_node_attributes(G, labelConserver)
-  print(labelConserver)
-  print(G.nodes[0]['orig_label'])
-  return G
-
+    return 0'''
 
 
 
