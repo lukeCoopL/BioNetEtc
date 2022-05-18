@@ -8,7 +8,7 @@ import scipy as sp
 import copy
 branchLength=50
 algType="gene"
-
+print("new")
 leafGraphs=dict()
 internalGraphs=dict()
 t=nx.DiGraph()
@@ -22,13 +22,13 @@ root = [n for n,d in t.in_degree() if d==0]
 leaves = [n for n,d in t.out_degree() if d==0]
 for i in range(7):
     if i in leaves:
-        leafGraphs[i]= nx.read_edgelist("test_datasets_ancestral/regulatory_test_ped_pea/anc50_2cherry_branch"+str(branchLength)+"/LEAF"+str(i)+"_two_cherry_branchLength"+str(branchLength)+".txt",create_using=nx.DiGraph)
+        leafGraphs[i]= nx.read_edgelist("test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/LEAF"+str(i)+"_two_cherry_branchLength"+str(branchLength)+".txt",create_using=nx.DiGraph)
         #leafGraphs[i]= nx.read_edgelist("test_datasets_ancestral/code_quickrun/LEAF"+str(i)+"_two_cherry_branchLength"+str(branchLength)+".txt",create_using=nx.DiGraph)
 
     else:
         #internalGraphs[i]= nx.read_edgelist("test_datasets_ancestral/code_quickrun/INTERNAL"+str(i)+"_two_cherry_branchLength"+str(branchLength)+".txt",create_using=nx.DiGraph)
 
-        internalGraphs[i]= nx.read_edgelist("test_datasets_ancestral/regulatory_test_ped_pea/anc50_2cherry_branch"+str(branchLength)+"/INTERNAL"+str(i)+"_two_cherry_branchLength"+str(branchLength)+".txt",create_using=nx.DiGraph)
+        internalGraphs[i]= nx.read_edgelist("test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/INTERNAL"+str(i)+"_two_cherry_branchLength"+str(branchLength)+".txt",create_using=nx.DiGraph)
 G_anc_dict=dict()
 G_anc_dict[(2,3)]=internalGraphs[1]
 G_anc_dict[(3,2)]=internalGraphs[1]
@@ -46,8 +46,8 @@ G_anc_dict[(5,3)]=internalGraphs[0]
 
 qMod=0.4
 qCon=0.1
-r=0.1
-q=0.4
+r=0.8
+q=0.8
 iterations=1
 
 iterationVec=[i for i in range(iterations)]
@@ -249,10 +249,10 @@ for l in leafGraphs:
                 S3_find2_vec[str((l,m))]=gf.s3_score(G_find2_anc,G_anc)
                 network_order_find2[str((l,m))]=len(G_find2_anc.nodes)
 
-                nx.write_edgelist(G_find_int_anc,"test_datasets_ancestral/anc50_2cherry_branch"+str(branchLength)+"/myalg_int_anc_graphs_"+str(l)+"_"+str(m)+".txt")
-                nx.write_edgelist(G_true_unint,"test_datasets_ancestral/anc50_2cherry_branch"+str(branchLength)+"/myalg_unint_anc_graphs_"+str(l)+"_"+str(m)+".txt")
-                nx.write_edgelist(G_find1_anc,"test_datasets_ancestral/anc50_2cherry_branch"+str(branchLength)+"/myalgG"+str(l)+"_anc_graphs_"+str(l)+"_"+str(m)+".txt")
-                nx.write_edgelist(G_find2_anc,"test_datasets_ancestral/anc50_2cherry_branch"+str(branchLength)+"/myalgG"+str(m)+"_anc_graphs_"+str(l)+"_"+str(m)+".txt")
+                nx.write_edgelist(G_find_int_anc,"test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/myalg_int_anc_graphs_"+str(l)+"_"+str(m)+".txt")
+                nx.write_edgelist(G_true_unint,"test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/myalg_unint_anc_graphs_"+str(l)+"_"+str(m)+".txt")
+                nx.write_edgelist(G_find1_anc,"test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/myalgG"+str(l)+"_anc_graphs_"+str(l)+"_"+str(m)+".txt")
+                nx.write_edgelist(G_find2_anc,"test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/myalgG"+str(m)+"_anc_graphs_"+str(l)+"_"+str(m)+".txt")
                 
                 #Zhu-Nakleh Reconstruction
                 G1_orig=copy.deepcopy(G1)
@@ -272,7 +272,7 @@ for l in leafGraphs:
                 extra_edges_dmc_vec[str((l,m))]=len(G_dmc_anc.edges)-conservedEdges
                 missed_edges_dmc_vec[str((l,m))]=len(G_anc.edges)-conservedEdges
                 network_order_dmc[str((l,m))]=len(G_dmc_anc.nodes)
-                nx.write_edgelist(G_dmc_anc,"test_datasets_ancestral/anc50_2cherry_branch"+str(branchLength)+"/dmc_anc_graphs_"+str(l)+"_"+str(m)+".txt")
+                nx.write_edgelist(G_dmc_anc,"test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/dmc_anc_graphs_"+str(l)+"_"+str(m)+".txt")
                 '''
                 #NF Align then intersect
                 G1_orig=copy.deepcopy(G1)
@@ -354,8 +354,8 @@ for l in leafGraphs:
                 missed_edges_unint_vec[str((l,m))]=len(G_anc.edges)-conservedEdges
                 network_order_unint[str((l,m))]=len(G_unint_anc.nodes)
                 
-                nx.write_edgelist(G_orig_anc,"test_datasets_ancestral/anc50_2cherry_branch"+str(branchLength)+"/intersect_anc_graphs_"+str(l)+"_"+str(m)+".txt")
-                nx.write_edgelist(G_unint_anc,"test_datasets_ancestral/anc50_2cherry_branch"+str(branchLength)+"/unint_anc_graphs_"+str(l)+"_"+str(m)+".txt")
+                nx.write_edgelist(G_orig_anc,"test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/intersect_anc_graphs_"+str(l)+"_"+str(m)+".txt")
+                nx.write_edgelist(G_unint_anc,"test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/unint_anc_graphs_"+str(l)+"_"+str(m)+".txt")
                 print("g_anc true edge number",len(G_anc.edges())) 
                 '''
                 #Align then apply my algorithm
@@ -697,7 +697,7 @@ plt.xticks([r + barWidth+0.16 for r in range(len(EC_dmc))],
 # Put a legend to the right of the current axis
 plt.legend(bbox_to_anchor=(1.04,0.5), loc="center left", borderaxespad=0)
 
-plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea/anc50_2cherry_branch"+str(branchLength)+"/EC_scores_branchlength"+str(branchLength)+".png",bbox_inches="tight")
+plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/EC_scores_branchlength"+str(branchLength)+".png",bbox_inches="tight")
 
 plt.figure(figsize =(12, 8))
 barWidth = 0.08
@@ -731,7 +731,7 @@ plt.xticks([r + barWidth+0.16 for r in range(len(S3_dmc))],
         pairs_vec)
 
 plt.legend(bbox_to_anchor=(1.04,0.5), loc="center left", borderaxespad=0)
-plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea/anc50_2cherry_branch"+str(branchLength)+"/S3_scores_branchlength"+str(branchLength)+".png",bbox_inches='tight')
+plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/S3_scores_branchlength"+str(branchLength)+".png",bbox_inches='tight')
 
 plt.figure(figsize =(12, 8))
 barWidth = 0.08
@@ -768,7 +768,7 @@ plt.xticks([r + barWidth+0.16 for r in range(len(net_order_dmc))],
         pairs_vec)
 
 plt.legend(bbox_to_anchor=(1.04,0.5), loc="center left", borderaxespad=0)
-plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea/anc50_2cherry_branch"+str(branchLength)+"/net_order_scores_branchlength"+str(branchLength)+".png",bbox_inches='tight')
+plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/net_order_scores_branchlength"+str(branchLength)+".png",bbox_inches='tight')
 
 plt.figure(figsize =(12, 8))
 barWidth = 0.08
@@ -804,7 +804,7 @@ plt.xticks([r + barWidth+0.16 for r in range(len(conserved_dmc))],
 # Put a legend to the right of the current axis
 plt.legend(bbox_to_anchor=(1.04,0.5), loc="center left", borderaxespad=0)
 
-plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea/anc50_2cherry_branch"+str(branchLength)+"/conserved_edges_branchlength"+str(branchLength)+".png",bbox_inches="tight")
+plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/conserved_edges_branchlength"+str(branchLength)+".png",bbox_inches="tight")
 
 
 plt.figure(figsize =(12, 8))
@@ -842,7 +842,7 @@ plt.xticks([r + barWidth+0.16 for r in range(len(conserved_dmc))],
 # Put a legend to the right of the current axis
 plt.legend(bbox_to_anchor=(1.04,0.5), loc="center left", borderaxespad=0)
 
-plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea/anc50_2cherry_branch"+str(branchLength)+"/extra_edges_branchlength"+str(branchLength)+".png",bbox_inches="tight")
+plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/extra_edges_branchlength"+str(branchLength)+".png",bbox_inches="tight")
 
 
 plt.figure(figsize =(12, 8))
@@ -880,8 +880,8 @@ plt.xticks([r + barWidth+0.16 for r in range(len(conserved_dmc))],
 # Put a legend to the right of the current axis
 plt.legend(bbox_to_anchor=(1.04,0.5), loc="center left", borderaxespad=0)
 
-plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea/anc50_2cherry_branch"+str(branchLength)+"/missed_edges_branchlength"+str(branchLength)+".png",bbox_inches="tight")
-gf.write_list_to_file([algType],"test_datasets_ancestral/regulatory_test_ped_pea/anc50_2cherry_branch"+str(branchLength)+"/recent_run")
+plt.savefig("test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/missed_edges_branchlength"+str(branchLength)+".png",bbox_inches="tight")
+gf.write_list_to_file([algType],"test_datasets_ancestral/regulatory_test_ped_pea_r08/anc50_2cherry_branch"+str(branchLength)+"/recent_run")
 
 '''
 plt.title("Edge Correctness of Estimated Ancestral Networks compared to True Ancestral Networks")
